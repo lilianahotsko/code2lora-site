@@ -1,0 +1,1031 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Code2LoRA — Repository-Conditioned and Commit-Streaming LoRA Adapters for Code LLMs</title>
+  <meta name="description" content="Code2LoRA turns a repository's commit history into a LoRA adapter for a frozen code LLM — zero inference-time token overhead. Includes c2l-terminal, an on-device coding assistant.">
+  <meta property="og:title" content="Code2LoRA">
+  <meta property="og:description" content="Hypernetworks that generate repository- and task-specific LoRA adapters from commit history. Try the c2l-terminal on-device assistant.">
+  <style>
+    :root {
+      --primary: #1a1a2e;
+      --accent: #4361ee;
+      --accent-light: #e8ecff;
+      --teal: #2a9d8f;
+      --orange: #ef6c00;
+      --text: #2d2d2d;
+      --text-light: #555;
+      --bg: #fafafa;
+      --card-bg: #fff;
+      --border: #e0e0e0;
+      --term-bg: #0d1117;
+      --term-text: #c9d1d9;
+      --term-green: #7ee787;
+      --term-blue: #79c0ff;
+      --term-dim: #8b949e;
+      --term-yellow: #e3b341;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+      color: var(--text);
+      background: var(--bg);
+      line-height: 1.6;
+    }
+
+    code, pre, .mono { font-family: ui-monospace, 'SF Mono', 'Cascadia Code', Menlo, Consolas, monospace; }
+
+    p code, li code, td code {
+      background: #eef1f6;
+      border-radius: 4px;
+      padding: 1px 5px;
+      font-size: 0.88em;
+    }
+
+    /* ── Nav ── */
+    nav {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      background: rgba(26, 26, 46, 0.96);
+      backdrop-filter: blur(6px);
+      padding: 10px 24px;
+      display: flex;
+      align-items: center;
+      gap: 22px;
+      overflow-x: auto;
+      white-space: nowrap;
+    }
+    nav .brand { color: #7ec8e3; font-weight: 700; font-size: 1rem; text-decoration: none; }
+    nav a { color: #c0c8e0; text-decoration: none; font-size: 0.88rem; }
+    nav a:hover { color: #fff; }
+
+    /* ── Header / Hero ── */
+    .hero {
+      background: linear-gradient(135deg, var(--primary) 0%, #16213e 50%, #0f3460 100%);
+      color: #fff;
+      padding: 72px 20px 56px;
+      text-align: center;
+    }
+    .hero .venue {
+      display: inline-block;
+      background: rgba(126, 200, 227, 0.15);
+      border: 1px solid rgba(126, 200, 227, 0.4);
+      color: #7ec8e3;
+      font-size: 0.8rem;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      padding: 4px 14px;
+      border-radius: 20px;
+      margin-bottom: 20px;
+    }
+    .hero h1 {
+      font-size: 2.5rem;
+      font-weight: 700;
+      margin-bottom: 14px;
+      line-height: 1.25;
+    }
+    .hero h1 span { color: #7ec8e3; }
+    .hero .subtitle {
+      font-size: 1.12rem;
+      color: #c0c8e0;
+      max-width: 760px;
+      margin: 0 auto 26px;
+    }
+    .hero .authors {
+      font-size: 0.95rem;
+      color: #a0aac0;
+      margin-bottom: 6px;
+    }
+    .hero .authors a { color: #cdd6f0; text-decoration: none; }
+    .hero .authors a:hover { text-decoration: underline; }
+    .hero .affiliations {
+      font-size: 0.9rem;
+      color: #9aa4bd;
+      margin-bottom: 30px;
+    }
+
+    /* ── Resource buttons ── */
+    .resource-links {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      max-width: 900px;
+      margin: 0 auto;
+    }
+    .resource-links a {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 20px;
+      border-radius: 6px;
+      font-size: 0.92rem;
+      font-weight: 600;
+      text-decoration: none;
+      transition: transform 0.15s, box-shadow 0.15s;
+    }
+    .resource-links a:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+    }
+    .btn-paper { background: #fff; color: var(--primary); }
+    .btn-code  { background: #24292f; color: #fff; }
+    .btn-hf    { background: #ff9d00; color: #1a1a2e; }
+    .btn-data  { background: var(--accent); color: #fff; }
+    .btn-video { background: #c4302b; color: #fff; }
+    .btn-disabled { opacity: 0.55; cursor: default; pointer-events: none; }
+    .badge-soon {
+      font-size: 0.68rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      background: rgba(0,0,0,0.12);
+      padding: 2px 7px;
+      border-radius: 3px;
+    }
+    .btn-code .badge-soon, .btn-data .badge-soon, .btn-video .badge-soon { background: rgba(255,255,255,0.22); }
+
+    /* ── Container / sections ── */
+    .container { max-width: 900px; margin: 0 auto; padding: 0 24px; }
+    section { padding: 48px 0; }
+    section + section { border-top: 1px solid var(--border); }
+    section h2 { font-size: 1.5rem; margin-bottom: 18px; color: var(--primary); }
+    section h3 { font-size: 1.12rem; margin: 26px 0 10px; color: var(--primary); }
+    section p, section li { color: var(--text-light); font-size: 0.97rem; }
+    section ul, section ol { padding-left: 20px; margin-top: 8px; }
+    section li { margin-bottom: 6px; }
+
+    /* ── TLDR card ── */
+    .tldr {
+      background: var(--accent-light);
+      border-left: 4px solid var(--accent);
+      border-radius: 6px;
+      padding: 20px 24px;
+      margin-bottom: 8px;
+      font-size: 1.02rem;
+      color: var(--text);
+    }
+
+    /* ── Two-variant cards ── */
+    .variant-cards { display: flex; gap: 16px; margin: 20px 0; flex-wrap: wrap; }
+    .variant-card {
+      flex: 1;
+      min-width: 260px;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-top: 3px solid var(--accent);
+      border-radius: 8px;
+      padding: 18px 20px;
+    }
+    .variant-card.evo { border-top-color: var(--teal); }
+    .variant-card h4 { font-size: 1rem; color: var(--primary); margin-bottom: 6px; }
+    .variant-card p { font-size: 0.9rem; }
+
+    /* ── Figures ── */
+    .figure { text-align: center; margin: 28px 0; }
+    .hero-figure { padding-top: 36px; padding-bottom: 8px; }
+    .hero-figure + section { border-top: none; }
+    .figure-caption {
+      margin-top: 10px;
+      font-size: 0.88rem;
+      color: #888;
+      font-style: italic;
+      max-width: 780px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    /* ── Pipeline steps ── */
+    .pipeline { display: flex; gap: 14px; margin: 20px 0; flex-wrap: wrap; }
+    .pipeline-step {
+      flex: 1;
+      min-width: 150px;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 18px 14px;
+      text-align: center;
+    }
+    .pipeline-step .step-num {
+      display: inline-block;
+      width: 28px; height: 28px;
+      line-height: 28px;
+      border-radius: 50%;
+      background: var(--accent);
+      color: #fff;
+      font-size: 0.82rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+    .pipeline-step h4 { font-size: 0.9rem; margin-bottom: 4px; color: var(--primary); }
+    .pipeline-step p { font-size: 0.8rem; color: var(--text-light); }
+
+    /* ── Tables ── */
+    .results-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 16px 0;
+      font-size: 0.92rem;
+      background: var(--card-bg);
+    }
+    .results-table th, .results-table td {
+      padding: 9px 14px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+    .results-table thead th {
+      background: var(--primary);
+      color: #fff;
+      font-weight: 600;
+      font-size: 0.82rem;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+    .results-table tbody tr:hover { background: #f5f7ff; }
+    .results-table .highlight { font-weight: 700; color: var(--accent); }
+    .results-table .ours td { background: #f2f5ff; }
+    .table-note { font-size: 0.85rem; color: #888; margin-top: 4px; }
+
+    /* ── Terminal mock ── */
+    .terminal {
+      background: var(--term-bg);
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.25);
+      margin: 24px 0;
+      text-align: left;
+    }
+    .terminal-bar {
+      background: #161b22;
+      padding: 9px 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .terminal-bar .dot { width: 12px; height: 12px; border-radius: 50%; }
+    .terminal-bar .dot.r { background: #ff5f56; }
+    .terminal-bar .dot.y { background: #ffbd2e; }
+    .terminal-bar .dot.g { background: #27c93f; }
+    .terminal-bar .title { color: var(--term-dim); font-size: 0.8rem; margin-left: 8px; }
+    .terminal pre {
+      padding: 18px 20px;
+      color: var(--term-text);
+      font-size: 0.83rem;
+      line-height: 1.55;
+      overflow-x: auto;
+      white-space: pre;
+    }
+    .t-prompt { color: var(--term-green); font-weight: 600; }
+    .t-cmd    { color: #fff; }
+    .t-dim    { color: var(--term-dim); }
+    .t-blue   { color: var(--term-blue); }
+    .t-yellow { color: var(--term-yellow); }
+
+    /* ── Code blocks ── */
+    .codeblock {
+      position: relative;
+      background: #f4f4f8;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      margin: 12px 0 20px;
+    }
+    .codeblock pre {
+      padding: 14px 18px;
+      font-size: 0.85rem;
+      line-height: 1.55;
+      overflow-x: auto;
+      color: var(--text);
+    }
+    .copy-btn {
+      position: absolute;
+      top: 8px; right: 8px;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      padding: 4px 10px;
+      font-size: 0.72rem;
+      cursor: pointer;
+    }
+    .copy-btn:hover { background: #3451d1; }
+
+    /* ── Feature grid ── */
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 14px;
+      margin: 20px 0;
+    }
+    .feature {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px 18px;
+    }
+    .feature h4 { font-size: 0.94rem; color: var(--primary); margin-bottom: 5px; }
+    .feature p { font-size: 0.85rem; }
+
+    /* ── Artifact list ── */
+    .artifact-table td:first-child { white-space: nowrap; font-weight: 600; }
+    .artifact-table a { color: var(--accent); text-decoration: none; }
+    .artifact-table a:hover { text-decoration: underline; }
+    .tag {
+      display: inline-block;
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      border-radius: 3px;
+      padding: 1px 7px;
+      margin-left: 6px;
+    }
+    .tag.public { background: #e6f4ea; color: #1e7e34; }
+    .tag.soon   { background: #fff3e0; color: #e65100; }
+
+    /* ── Video placeholder ── */
+    .video-wrap {
+      position: relative;
+      max-width: 720px;
+      margin: 20px auto;
+      aspect-ratio: 16 / 9;
+      background: #0d1117;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--term-dim);
+      font-size: 0.95rem;
+      text-align: center;
+      padding: 20px;
+    }
+    .video-wrap iframe {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      border: 0;
+      border-radius: 10px;
+    }
+
+    /* ── News ── */
+    .news-list { list-style: none; padding: 0; }
+    .news-list li { margin-bottom: 8px; padding-left: 0; }
+    .news-date {
+      display: inline-block;
+      min-width: 92px;
+      font-weight: 700;
+      color: var(--accent);
+      font-size: 0.88rem;
+    }
+
+    /* ── BibTeX ── */
+    .bibtex {
+      background: #f4f4f8;
+      border-radius: 6px;
+      padding: 16px 20px;
+      font-size: 0.82rem;
+      line-height: 1.5;
+      overflow-x: auto;
+      color: var(--text);
+      position: relative;
+      margin-top: 12px;
+    }
+
+    /* ── Footer ── */
+    footer {
+      text-align: center;
+      padding: 32px 20px;
+      font-size: 0.85rem;
+      color: #999;
+      border-top: 1px solid var(--border);
+    }
+    footer a { color: var(--accent); text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+
+    @media (max-width: 600px) {
+      .hero h1 { font-size: 1.7rem; }
+      .hero .subtitle { font-size: 0.98rem; }
+      .pipeline, .variant-cards { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ════════════ Nav ════════════ -->
+  <nav>
+    <a class="brand" href="#top">Code2LoRA</a>
+    <a href="#terminal">c2l-terminal</a>
+    <a href="#method">Method</a>
+    <a href="#results">Results</a>
+    <a href="#video">Video</a>
+    <a href="#artifacts">Artifacts</a>
+    <a href="#citation">Citation</a>
+  </nav>
+
+  <!-- ════════════ Hero ════════════ -->
+  <header class="hero" id="top">
+    <div class="venue">EMNLP 2026 System Demonstration — under review</div>
+    <h1><span>Code2LoRA</span>: Hypernetworks for Repository-Conditioned<br>
+        and Commit-Streaming Adapters of Code Language Models</h1>
+    <p class="subtitle">
+      A hypernetwork trained once, across hundreds of repositories, that maps <em>your</em>
+      repository's commit history directly to a LoRA adapter for a frozen code LLM —
+      repository knowledge with <strong>zero inference-time token overhead</strong>,
+      updated in <strong>O(1) per commit</strong>, and deployable
+      <strong>on a laptop, fully offline</strong>.
+    </p>
+    <p class="authors">
+      <a href="https://github.com/lilianahotsko">Liliana Hotsko</a> &middot;
+      Yinxi Li &middot; Yuntian Deng &middot; Pengyu Nie
+    </p>
+    <p class="affiliations">
+      University of Waterloo
+    </p>
+
+    <div class="resource-links">
+      <a href="https://arxiv.org/abs/2606.06492" class="btn-paper" target="_blank" rel="noopener">
+        <svg width="18" height="18" fill="currentColor" viewBox="0 0 16 16"><path d="M4 0a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V4.5L9.5 0H4zm5.5 0v3A1.5 1.5 0 0 0 11 4.5H14"/></svg>
+        Paper (arXiv)
+      </a>
+      <a href="https://github.com/lilianahotsko/c2l_terminal" class="btn-code">
+        <svg width="18" height="18" fill="currentColor" viewBox="0 0 16 16"><path d="M8 0C3.58 0 0 3.58 0 8a8 8 0 0 0 5.47 7.59c.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.63 7.63 0 0 1 4 0c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
+        c2l-terminal
+      </a>
+      <a href="https://huggingface.co/spaces/code2lora/code2lora-gru-demo" class="btn-hf">
+        🤗 Live Demo
+      </a>
+      <a href="https://huggingface.co/code2lora/code2lora-gru" class="btn-hf">
+        🤗 Checkpoint
+      </a>
+      <a href="https://huggingface.co/datasets/code2lora/code2lora-evo" class="btn-data">
+        <svg width="18" height="18" fill="currentColor" viewBox="0 0 16 16"><path d="M8 1c-3.87 0-7 1.12-7 2.5v9C1 13.88 4.13 15 8 15s7-1.12 7-2.5v-9C15 2.12 11.87 1 8 1zM8 2.5c3.31 0 5.5.9 5.5 1.5S11.31 5.5 8 5.5 2.5 4.6 2.5 4s2.19-1.5 5.5-1.5z"/></svg>
+        Datasets
+      </a>
+      <a href="#video" class="btn-video">
+        <svg width="18" height="18" fill="currentColor" viewBox="0 0 16 16"><path d="M6.79 5.093A.5.5 0 0 0 6 5.5v5a.5.5 0 0 0 .79.407l3.5-2.5a.5.5 0 0 0 0-.814l-3.5-2.5z"/><path d="M0 4a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V4z" fill-opacity=".3"/></svg>
+        Video <span class="badge-soon">soon</span>
+      </a>
+    </div>
+  </header>
+
+  <main class="container">
+
+    <!-- ════════════ Architecture Figure (hero) ════════════ -->
+    <section class="hero-figure">
+      <div class="figure">
+        <svg viewBox="0 0 920 430" xmlns="http://www.w3.org/2000/svg" style="max-width:840px;width:100%;height:auto;font-family:'Segoe UI',Helvetica,Arial,sans-serif;">
+          <defs>
+            <marker id="arr" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6Z" fill="#4361ee"/></marker>
+            <marker id="arr-o" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6Z" fill="#ef6c00"/></marker>
+            <marker id="arr-g" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6Z" fill="#2a9d8f"/></marker>
+            <linearGradient id="gQwen" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#1a1a2e"/><stop offset="100%" stop-color="#0f3460"/></linearGradient>
+          </defs>
+
+          <rect x="0" y="0" width="920" height="430" rx="12" fill="#f8f9fc"/>
+
+          <!-- Zone: adapter generation (CPU) -->
+          <rect x="12" y="12" width="600" height="406" rx="8" fill="#eef1fa" stroke="#c5cbe6"/>
+          <text x="312" y="34" text-anchor="middle" font-size="11" fill="#556" font-weight="700">ADAPTER GENERATION — CPU-ONLY, BASE LLM NEVER LOADED</text>
+
+          <!-- Zone: serving -->
+          <rect x="628" y="12" width="280" height="406" rx="8" fill="#e8f5e9" stroke="#a5d6a7"/>
+          <text x="768" y="34" text-anchor="middle" font-size="11" fill="#2e7d32" font-weight="700">QUANTIZED SERVING</text>
+
+          <!-- git repo -->
+          <rect x="32" y="60" width="120" height="56" rx="6" fill="#fff" stroke="#4361ee" stroke-width="1.5"/>
+          <text x="92" y="84" text-anchor="middle" font-size="11" fill="#1a1a2e" font-weight="600">git repository</text>
+          <text x="92" y="99" text-anchor="middle" font-size="8.5" fill="#888">first-parent history</text>
+
+          <!-- commit mining -->
+          <line x1="152" y1="88" x2="180" y2="88" stroke="#4361ee" stroke-width="1.5" marker-end="url(#arr)"/>
+          <rect x="188" y="60" width="140" height="56" rx="6" fill="#4361ee"/>
+          <text x="258" y="82" text-anchor="middle" font-size="10" fill="#fff" font-weight="600">commit mining</text>
+          <text x="258" y="96" text-anchor="middle" font-size="8.5" fill="#c5d4ff">kept: new-assertion commits</text>
+          <text x="258" y="107" text-anchor="middle" font-size="8.5" fill="#c5d4ff">production-code diffs</text>
+
+          <!-- snapshot path -->
+          <rect x="32" y="160" width="120" height="52" rx="6" fill="#fff" stroke="#5c6bc0" stroke-width="1.5"/>
+          <text x="92" y="182" text-anchor="middle" font-size="10" fill="#1a1a2e" font-weight="600">snapshot @ c₀</text>
+          <text x="92" y="196" text-anchor="middle" font-size="8.5" fill="#888">initial repo state</text>
+
+          <!-- encoder -->
+          <line x1="328" y1="88" x2="356" y2="88" stroke="#4361ee" stroke-width="1.5" marker-end="url(#arr)"/>
+          <line x1="152" y1="186" x2="368" y2="186" stroke="#5c6bc0" stroke-width="1.5" stroke-dasharray="4,2" marker-end="url(#arr)"/>
+          <rect x="364" y="60" width="150" height="56" rx="6" fill="#5c6bc0"/>
+          <text x="439" y="82" text-anchor="middle" font-size="10" fill="#fff" font-weight="600">Qwen3-Embedding-0.6B</text>
+          <text x="439" y="96" text-anchor="middle" font-size="8.5" fill="#d5dcff">frozen encoder</text>
+          <text x="439" y="107" text-anchor="middle" font-size="8.5" fill="#d5dcff">diff → 2048-d</text>
+
+          <!-- GRU -->
+          <line x1="439" y1="116" x2="439" y2="150" stroke="#4361ee" stroke-width="1.5" marker-end="url(#arr)"/>
+          <rect x="364" y="158" width="150" height="56" rx="6" fill="#3949ab"/>
+          <text x="439" y="180" text-anchor="middle" font-size="10" fill="#fff" font-weight="600">Commit GRU (2048)</text>
+          <text x="439" y="194" text-anchor="middle" font-size="8.5" fill="#c5d4ff">h₀ ← snapshot · hₜ ← diffₜ</text>
+          <text x="439" y="205" text-anchor="middle" font-size="8.5" fill="#c5d4ff">O(1) update per commit</text>
+
+          <!-- task embedding -->
+          <rect x="32" y="262" width="150" height="48" rx="6" fill="#fff" stroke="#ef6c00" stroke-width="1.5"/>
+          <text x="107" y="283" text-anchor="middle" font-size="10" fill="#1a1a2e" font-weight="600">task embedding (64-d)</text>
+          <text x="107" y="297" text-anchor="middle" font-size="8.5" fill="#888">assert_rhs · qa</text>
+          <line x1="182" y1="286" x2="360" y2="286" stroke="#ef6c00" stroke-width="1.5" marker-end="url(#arr-o)"/>
+
+          <!-- head -->
+          <line x1="439" y1="214" x2="439" y2="252" stroke="#4361ee" stroke-width="1.5" marker-end="url(#arr)"/>
+          <rect x="364" y="258" width="150" height="56" rx="6" fill="#ef6c00"/>
+          <text x="439" y="280" text-anchor="middle" font-size="10" fill="#fff" font-weight="600">hypernetwork head</text>
+          <text x="439" y="294" text-anchor="middle" font-size="8.5" fill="#ffe0b2">[hₜ ; task] → LoRA(A,B)</text>
+          <text x="439" y="305" text-anchor="middle" font-size="8.5" fill="#ffe0b2">rank 16 · α = 32</text>
+
+          <!-- LoRA out -->
+          <line x1="439" y1="314" x2="439" y2="348" stroke="#ef6c00" stroke-width="1.5" marker-end="url(#arr-o)"/>
+          <rect x="334" y="354" width="210" height="42" rx="6" fill="#fff3e0" stroke="#ef6c00" stroke-width="1.2"/>
+          <text x="439" y="372" text-anchor="middle" font-size="9.5" fill="#e65100" font-weight="700">LoRA adapter · ~18M params · ~37 MB</text>
+          <text x="439" y="387" text-anchor="middle" font-size="8.5" fill="#e65100">q/k/v/o + up/gate/down · PEFT or GGUF export</text>
+
+          <!-- adapter to serving -->
+          <line x1="544" y1="375" x2="656" y2="375" stroke="#ef6c00" stroke-width="1.8" marker-end="url(#arr-o)"/>
+          <text x="600" y="366" text-anchor="middle" font-size="8.5" fill="#e65100" font-weight="600">inject</text>
+
+          <!-- base model -->
+          <rect x="656" y="70" width="224" height="150" rx="8" fill="url(#gQwen)"/>
+          <text x="768" y="98" text-anchor="middle" font-size="12" fill="#7ec8e3" font-weight="700">Qwen2.5-Coder-1.5B</text>
+          <text x="768" y="114" text-anchor="middle" font-size="9" fill="#90a4ae">frozen · quantized</text>
+          <rect x="674" y="128" width="188" height="24" rx="4" fill="rgba(255,255,255,0.08)"/>
+          <text x="768" y="144" text-anchor="middle" font-size="8.5" fill="#b0bec5">attention: q, k, v, o  <tspan fill="#ff9800" font-weight="700">+LoRA</tspan></text>
+          <rect x="674" y="158" width="188" height="24" rx="4" fill="rgba(255,255,255,0.08)"/>
+          <text x="768" y="174" text-anchor="middle" font-size="8.5" fill="#b0bec5">MLP: gate, up, down  <tspan fill="#ff9800" font-weight="700">+LoRA</tspan></text>
+          <text x="768" y="205" text-anchor="middle" font-size="8" fill="#78909c">fp16 · int8 · NF4 · GGUF Q4_K_M</text>
+
+          <!-- adapter up to model -->
+          <line x1="768" y1="354" x2="768" y2="224" stroke="#ef6c00" stroke-width="1.8" marker-end="url(#arr-o)"/>
+          <rect x="700" y="354" width="136" height="0.1" fill="none"/>
+
+          <!-- REPL -->
+          <rect x="656" y="356" width="224" height="46" rx="6" fill="#43a047"/>
+          <text x="768" y="376" text-anchor="middle" font-size="10.5" fill="#fff" font-weight="700">c2lt REPL / c2l CLI</text>
+          <text x="768" y="391" text-anchor="middle" font-size="8.5" fill="#c8e6c9">assertion completion · repository Q&amp;A</text>
+
+          <!-- model to repl -->
+          <line x1="880" y1="145" x2="896" y2="145" stroke="#2a9d8f" stroke-width="0" />
+          <path d="M768,220 L768,236" fill="none" stroke="#2a9d8f" stroke-width="1.8" marker-end="url(#arr-g)"/>
+          <rect x="700" y="242" width="136" height="34" rx="5" fill="#fff" stroke="#a5d6a7"/>
+          <text x="768" y="263" text-anchor="middle" font-size="9" fill="#2e7d32" font-weight="600">completions / answers</text>
+          <path d="M768,276 L768,350" fill="none" stroke="#2a9d8f" stroke-width="1.8" marker-end="url(#arr-g)"/>
+
+          <!-- incremental loop -->
+          <path d="M330,186 Q300,186 300,150 Q300,118 328,105" fill="none" stroke="#3949ab" stroke-width="1.2" stroke-dasharray="3,3"/>
+          <text x="255" y="145" text-anchor="middle" font-size="8" fill="#3949ab" font-weight="600">new commit →</text>
+          <text x="255" y="156" text-anchor="middle" font-size="8" fill="#3949ab" font-weight="600">1 embed + 1 GRU step</text>
+          <line x1="364" y1="186" x2="330" y2="186" stroke="#3949ab" stroke-width="0"/>
+        </svg>
+        <div class="figure-caption">
+          The c2l-terminal / Code2LoRA-Evo pipeline. Left: adapter generation walks the commit
+          history — each production-code diff is embedded by a frozen encoder and folded into a
+          GRU state initialized from the repository snapshot; a task-conditioned head emits the
+          LoRA. This stage never loads the base LLM and runs on CPU. Right: the ~37 MB adapter
+          is injected into the frozen, quantized Qwen2.5-Coder-1.5B for serving. New commits
+          update the cached GRU state in O(1).
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════ TL;DR ════════════ -->
+    <section>
+      <div class="tldr">
+        <strong>TL;DR</strong> &mdash;
+        Injecting repository knowledge into a code LLM usually means long retrieved contexts
+        (paid on <em>every</em> request) or per-repository fine-tuning (infeasible at scale).
+        Code2LoRA trains a hypernetwork <em>once</em> that generates a repository-specific LoRA
+        adapter in a single pass. On RepoPeftBench it reaches
+        <strong>63.8% exact match</strong> on held-out repositories
+        (pretrained backbone: 45.7%; full fine-tuning: 51.4%; RAG: 39.7%), and
+        <strong>78.9%</strong> on repositories created <em>after</em> the training-data cutoff.
+        The commit-streaming variant updates the adapter in <strong>one GRU step per commit</strong>.
+        <a href="#terminal"><strong>c2l-terminal</strong></a> ships all of it as a
+        pip-installable, offline-capable terminal assistant.
+      </div>
+    </section>
+
+    <!-- ════════════ News ════════════ -->
+    <section>
+      <h2>News</h2>
+      <ul class="news-list">
+        <li><span class="news-date">Jul 2026</span> <code>c2l-terminal</code> demo submitted to EMNLP 2026 System Demonstrations.</li>
+        <li><span class="news-date">Jul 2026</span> Paper-exact benchmark datasets released on the Hugging Face Hub (<a href="#artifacts">artifacts</a>).</li>
+        <li><span class="news-date">Jun 2026</span> Multi-task checkpoint: repository question answering added to the assertion-completion model via a forgetting-free warm start.</li>
+        <li><span class="news-date">May 2026</span> <a href="https://huggingface.co/code2lora/code2lora-gru">Code2LoRA-GRU checkpoint</a> and <a href="https://huggingface.co/spaces/code2lora/code2lora-gru-demo">interactive Space</a> published.</li>
+      </ul>
+    </section>
+
+    <!-- ════════════ Abstract ════════════ -->
+    <section>
+      <h2>Abstract</h2>
+      <p>
+        Code language models need repository-level context to resolve imports, APIs, and project
+        conventions. Existing methods inject this knowledge as long inputs — retrieved through RAG
+        or dependency analysis — or through per-repository fine-tuning: costly at repository scale
+        and brittle to evolving codebases.
+      </p>
+      <p style="margin-top: 12px;">
+        We introduce <strong>Code2LoRA</strong>, a hypernetwork framework that generates
+        repository-specific LoRA adapters, effectively injecting repository knowledge with zero
+        inference-time token overhead. Code2LoRA supports two usage scenarios:
+      </p>
+      <div class="variant-cards">
+        <div class="variant-card">
+          <h4>Code2LoRA-Static</h4>
+          <p>Converts a single repository <em>snapshot</em> into an adapter in one forward pass —
+             suited to comprehension of stable codebases.</p>
+        </div>
+        <div class="variant-card evo">
+          <h4>Code2LoRA-Evo (GRU)</h4>
+          <p>Maintains an adapter backed by a GRU hidden state updated <em>per commit diff</em> —
+             O(1) per commit, suited to active development, IDE and CI integration.</p>
+        </div>
+      </div>
+      <p>
+        We evaluate on <strong>RepoPeftBench</strong>, a benchmark of 512 Python repositories with
+        62K assertion-completion tasks spanning cross-repository (CR), in-repository (IR), and a
+        held-out post-cutoff out-of-distribution (OOD) suite of 92 repositories created strictly
+        after the training-scrape cutoff. Code2LoRA achieves 63.8% CR exact match — outperforming
+        the pretrained Qwen2.5-Coder-1.5B backbone (45.7%), full fine-tuning (51.4%),
+        retrieval-augmented generation (39.7%), and in-context learning (42.2%) — while adding zero
+        inference tokens. On post-cutoff OOD repositories, Code2LoRA-GRU reaches 78.9% EM, a +33.3
+        absolute gain over the same pretrained backbone, evidencing that hypernetwork-generated
+        adapters generalize to repositories that did not exist at training time.
+      </p>
+    </section>
+
+    <!-- ════════════ c2l-terminal ════════════ -->
+    <section id="terminal">
+      <h2>c2l-terminal — the on-device demo system</h2>
+      <p>
+        <code>c2l-terminal</code> packages Code2LoRA-Evo as a self-contained,
+        Claude-Code-style terminal assistant that runs entirely on a developer laptop.
+        It walks <em>your</em> repository's commit history, generates a repository- and
+        task-specific LoRA adapter in minutes <strong>on CPU</strong> (the base LLM is never
+        loaded during generation), and serves completions from a quantized
+        Qwen2.5-Coder-1.5B with that adapter injected.
+      </p>
+
+      <div class="terminal">
+        <div class="terminal-bar">
+          <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+          <span class="title">c2lt — python-saml</span>
+        </div>
+<pre><span class="t-prompt">$</span> <span class="t-cmd">pip install code2lora</span>
+<span class="t-prompt">$</span> <span class="t-cmd">cd ~/work/python-saml && c2lt --task qa --backend gguf</span>
+
+<span class="t-blue">c2l-terminal</span> <span class="t-dim">— quantized Code2LoRA · base: Qwen2.5-Coder-1.5B (Q4_K_M)</span>
+
+<span class="t-prompt">c2l&gt;</span> <span class="t-cmd">/adapt</span>
+<span class="t-dim">  mining commits ... 86 kept (new-assertion commits)
+  embedding diffs + GRU walk ... done
+  adapter ready for SAML-Toolkits/python-saml  ·  task: qa  ·  ~37 MB LoRA</span>
+
+<span class="t-prompt">c2l&gt;</span> <span class="t-cmd">Which new public method was introduced in OneLogin_Saml2_Auth
+     for retrieving an attribute by FriendlyName?</span>
+<span class="t-yellow">`get_attribute_by_friendly_name(self, friendly_name)` was added. It returns
+the first attribute whose friendly_name matches the provided value, or `None`
+if no matching attribute is found.</span>
+
+<span class="t-prompt">c2l&gt;</span> <span class="t-cmd">/task assert_rhs</span>
+<span class="t-prompt">c2l&gt;</span> <span class="t-cmd">self.assertEqual(len(friendlyname_attributes),</span>
+<span class="t-yellow">0)</span>
+
+<span class="t-prompt">c2l&gt;</span> <span class="t-cmd">/adapt</span>            <span class="t-dim"># after a new commit: one embedding + one GRU step</span>
+<span class="t-dim">  1 new commit folded into cached GRU state — adapter updated in seconds</span></pre>
+      </div>
+
+      <div class="feature-grid">
+        <div class="feature">
+          <h4>Generation ≠ serving</h4>
+          <p>Adapter generation needs only the 0.6B encoder + GRU + head — minutes on CPU.
+             The quantized base model loads only when you ask for completions.</p>
+        </div>
+        <div class="feature">
+          <h4>Incremental by design</h4>
+          <p>GRU endpoint state is cached per repository and task. A push with <em>k</em> new
+             commits costs exactly <em>k</em> embeddings + GRU steps. <code>/adapt --local</code>
+             even tracks uncommitted working-tree changes.</p>
+        </div>
+        <div class="feature">
+          <h4>Runs on a laptop</h4>
+          <p>Three interchangeable backends: GGUF/llama.cpp (pure CPU, ~1 GB base),
+             bitsandbytes 4-bit/8-bit, or full-precision HF. Minimum: 8 GB RAM, ~5 GB disk.</p>
+        </div>
+        <div class="feature">
+          <h4>Offline &amp; private</h4>
+          <p><code>C2L_OFFLINE=1</code> disables all network access after models are cached.
+             Your code never leaves the machine — repository knowledge lives in weights,
+             not in prompts sent to a hosted service.</p>
+        </div>
+        <div class="feature">
+          <h4>Two tasks, one checkpoint</h4>
+          <p>Test-assertion completion and free-form repository Q&amp;A, switched with one
+             command (<code>/task</code>). The QA head was grown from the single-task model
+             with a warm start that is output-identical at initialization.</p>
+        </div>
+        <div class="feature">
+          <h4>Scriptable CLI</h4>
+          <p>Besides the <code>c2lt</code> REPL, the <code>c2l</code> CLI exposes
+             <code>adapt</code> / <code>run</code> / <code>export</code> / <code>verify</code>
+             for automation, plus PEFT- and GGUF-format adapter export.</p>
+        </div>
+      </div>
+
+      <h3>Install</h3>
+      <p>
+        Published on PyPI as
+        <a href="https://pypi.org/project/code2lora/"><code>code2lora</code></a>
+        (Python ≥ 3.9, MIT license); installs the <code>c2lt</code> REPL and the
+        <code>c2l</code> CLI:
+      </p>
+      <div class="codeblock">
+        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+<pre># from PyPI
+pip install code2lora
+
+# optional: 4-/8-bit inference via bitsandbytes
+pip install "code2lora[quant]"
+
+# or from source
+pip install git+https://github.com/lilianahotsko/c2l_terminal.git</pre>
+      </div>
+
+      <h3>Quick start (CPU laptop, GGUF backend)</h3>
+      <div class="codeblock">
+        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+<pre># one-time: build llama.cpp and grab the quantized base model (~1 GB)
+git clone https://github.com/ggerganov/llama.cpp ~/llama.cpp
+cmake -B ~/llama.cpp/build -S ~/llama.cpp && cmake --build ~/llama.cpp/build -j
+huggingface-cli download Qwen/Qwen2.5-Coder-1.5B-GGUF --include "*Q4_K_M*" \
+    --local-dir ~/models/qwen-coder-gguf
+
+export C2L_LLAMACPP=~/llama.cpp
+export C2L_BASE_GGUF=~/models/qwen-coder-gguf/&lt;the-q4-file&gt;.gguf
+
+# run inside any git repository
+cd /path/to/your/repo
+c2lt --device cpu --backend gguf
+# c2l> /adapt          → generate the adapter (encoder + checkpoint auto-download, ~3 GB)
+# c2l> /export-gguf    → convert the adapter for llama.cpp
+# c2l> type a code prefix, or a question with /task qa</pre>
+      </div>
+      <p class="table-note">
+        On a GPU (or with bitsandbytes ≥ 0.43 on CPU) you can skip llama.cpp entirely and use
+        <code>--backend 4bit</code>. Full instructions, REPL command reference, and
+        troubleshooting live in the
+        <a href="https://github.com/lilianahotsko/c2l_terminal">GitHub README</a>.
+      </p>
+
+      <h3>REPL commands</h3>
+      <table class="results-table">
+        <thead><tr><th>Command</th><th>Effect</th></tr></thead>
+        <tbody>
+          <tr><td><code>/adapt [repo]</code></td><td>Generate or incrementally update the adapter (only new commit diffs)</td></tr>
+          <tr><td><code>/adapt --local</code></td><td>Fold uncommitted working-tree changes into the adapter</td></tr>
+          <tr><td><code>/task [name]</code></td><td>Switch between <code>assert_rhs</code> (test completion) and <code>qa</code> (repository Q&amp;A)</td></tr>
+          <tr><td><code>/backend [name]</code></td><td><code>4bit</code> · <code>8bit</code> · <code>hf</code> · <code>gguf</code></td></tr>
+          <tr><td><code>/export-gguf [path]</code></td><td>Convert the adapter to a GGUF LoRA for llama.cpp</td></tr>
+          <tr><td><code>/context add &lt;file&gt;</code></td><td>Pin a file as standing context (<code>@file.py</code> injects once)</td></tr>
+          <tr><td><code>/tokens</code> · <code>/status</code> · <code>/help</code></td><td>Session control</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- ════════════ Method ════════════ -->
+    <section id="method">
+      <h2>Method</h2>
+
+      <div class="pipeline">
+        <div class="pipeline-step">
+          <div class="step-num">1</div>
+          <h4>Commit mining</h4>
+          <p>Streaming walk of first-parent git history selects commits that introduce new test assertions</p>
+        </div>
+        <div class="pipeline-step">
+          <div class="step-num">2</div>
+          <h4>Diff embedding</h4>
+          <p>Each commit's production-code diff is embedded by frozen Qwen3-Embedding-0.6B (2048-d)</p>
+        </div>
+        <div class="pipeline-step">
+          <div class="step-num">3</div>
+          <h4>GRU state</h4>
+          <p>A GRU, initialized from the repository snapshot embedding, folds the diff sequence — O(1) per commit</p>
+        </div>
+        <div class="pipeline-step">
+          <div class="step-num">4</div>
+          <h4>LoRA head</h4>
+          <p>A task-conditioned hypernetwork head emits rank-16 LoRA matrices for all attention &amp; MLP projections</p>
+        </div>
+        <div class="pipeline-step">
+          <div class="step-num">5</div>
+          <h4>Quantized serving</h4>
+          <p>The adapter is injected into frozen Qwen2.5-Coder-1.5B — fp16, 4/8-bit, or GGUF on CPU</p>
+        </div>
+      </div>
+
+      <h3>Growing new tasks without forgetting — by construction</h3>
+      <p>
+        The shipped checkpoint started as a single-task assertion-completion model. We added
+        free-form <em>repository question answering</em> by (1) generating
+        <strong>73,829 commit-grounded Q&amp;A pairs</strong> over the training repositories with
+        a batch LLM API for <strong>$28.50</strong>, and (2) growing the head with a
+        <strong>zero-padded warm start</strong>: the new task-conditioning columns of the first
+        trunk layer are initialized to zero, so the grown head is <em>byte-identical</em> to the
+        source model for every task id at initialization — verified by a unit test on the
+        generated LoRA tensors. Any forgetting is therefore attributable to fine-tuning drift
+        alone, not to the surgery.
+      </p>
+    </section>
+
+    <!-- ════════════ Results ════════════ -->
+    <section id="results">
+      <h2>Results</h2>
+
+      <h3>Static track — cross-repository test (held-out repositories)</h3>
+      <table class="results-table">
+        <thead>
+          <tr><th>Method</th><th>Exact Match (%)</th><th>Inference-time token overhead</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Pretrained Qwen2.5-Coder-1.5B</td><td>45.7</td><td>—</td></tr>
+          <tr><td>Retrieval-augmented generation (RAG)</td><td>39.7</td><td>thousands of tokens / request</td></tr>
+          <tr><td>In-context learning</td><td>42.2</td><td>thousands of tokens / request</td></tr>
+          <tr><td>Full fine-tuning</td><td>51.4</td><td>—</td></tr>
+          <tr class="ours"><td><strong>Code2LoRA-Static</strong></td><td class="highlight">63.8</td><td class="highlight">zero</td></tr>
+          <tr><td class="mono" style="font-size:0.85rem;">per-repo LoRA (upper bound; IR only)</td><td>64.0 (IR)</td><td>—</td></tr>
+        </tbody>
+      </table>
+      <p class="table-note">
+        Per-repo LoRA requires a training run per repository and is undefined on unseen (CR/OOD)
+        repositories — Code2LoRA matches its in-repo upper bound while generalizing across
+        repositories with a single forward pass.
+      </p>
+
+      <h3>Evolution track — commit-streaming (GRU)</h3>
+      <table class="results-table">
+        <thead>
+          <tr><th>Method</th><th>CR test EM (%)</th><th>IR test EM (%)</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Single shared LoRA (best baseline)</td><td>55.1</td><td>—</td></tr>
+          <tr class="ours"><td><strong>Code2LoRA-Evo (GRU)</strong></td><td class="highlight">60.3</td><td class="highlight">64.5</td></tr>
+        </tbody>
+      </table>
+
+      <h3>Out-of-distribution — repositories created after the training cutoff</h3>
+      <table class="results-table">
+        <thead>
+          <tr><th>Method</th><th>OOD EM (%)</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Pretrained Qwen2.5-Coder-1.5B</td><td>45.6</td></tr>
+          <tr class="ours"><td><strong>Code2LoRA-GRU</strong></td><td class="highlight">78.9 <span style="color:#1e7e34;font-size:0.85em;">(+33.3)</span></td></tr>
+        </tbody>
+      </table>
+      <p class="table-note">
+        92 GitHub repositories created strictly after the training-scrape cutoff — direct evidence
+        that the hypernetwork captures repository structure rather than memorizing training-time
+        repositories.
+      </p>
+
+      <h3>Repository question answering (multi-task checkpoint)</h3>
+      <table class="results-table">
+        <thead>
+          <tr><th>QA metric</th><th>CR test</th><th>IR test</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>QA quality (mean of ROUGE-L and token F1)</td><td>0.222</td><td>0.220</td></tr>
+          <tr><td>ROUGE-1</td><td>0.294</td><td>0.290</td></tr>
+          <tr><td>Token F1 (SQuAD normalization)</td><td>0.222</td><td>0.219</td></tr>
+        </tbody>
+      </table>
+      <p class="table-note">
+        14,762 held-out commit-grounded Q&amp;A pairs. The model reliably names the correct file
+        and symbol; the strongest demo repositories retain 0.62–0.77 assertion EM after the
+        QA fine-tune (e.g., <code>jpsca/jinjax</code> 0.77, <code>fastapi/sqlmodel</code> 0.75,
+        <code>SAML-Toolkits/python-saml</code> 0.69). Full tables and ablations are in the papers.
+      </p>
+    </section>
+
+    <!-- ════════════ Video ════════════ -->
+    <section id="video">
+      <h2>Demo video</h2>
+      <div class="video-wrap" id="video-slot">
+        <iframe src="https://www.youtube.com/embed/PqyD0eBLlhU?start=15"
+                title="c2l-terminal demo"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                allowfullscreen></iframe>
+      </div>
+      <p style="text-align:center; margin-top:14px;">
+        <a href="https://www.youtube.com/watch?v=PqyD0eBLlhU&amp;t=15s">Watch on YouTube ↗</a>
+      </p>
+    </section>
+
+    <!-- ════════════ Datasets & artifacts ════════════ -->
+    <section id="artifacts">
+      <h2>Artifacts</h2>
+      <p>
+        Everything is released under the MIT license on the
+        <a href="https://huggingface.co/code2lora">🤗 <code>code2lora</code> organization</a>
+        and GitHub. The benchmark datasets are <em>paper-exact</em>: they contain precisely the
+        rows consumed by the reported experiments, post quality-filter.
+      </p>
+      <table class="results-table artifact-table">
+        <thead><tr><th>Artifact</th><th>What it is</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><a href="https://pypi.org/project/code2lora/">code2lora</a><span class="tag public">PyPI</span></td>
+            <td><code>pip install code2lora</code> — the c2l-terminal package: <code>c2lt</code> REPL + <code>c2l</code> CLI, vendored SDK, GGUF/4-bit/8-bit backends</td>
+          </tr>
+          <tr>
+            <td><a href="https://github.com/lilianahotsko/c2l_terminal">c2l_terminal</a><span class="tag public">code</span></td>
+            <td>Source repository for the PyPI package</td>
+          </tr>
+          <tr>
+            <td><a href="https://huggingface.co/spaces/code2lora/code2lora-gru-demo">code2lora-gru-demo</a><span class="tag public">space</span></td>
+            <td>Browser demo: paste a repo URL, watch the GRU walk its history and the adapter beat the base model</td>
+          </tr>
+          <tr>
+            <td><a href="https://huggingface.co/code2lora/code2lora-gru">code2lora-gru</a><span class="tag public">model</span></td>
+            <td>The Code2LoRA-Evo hypernetwork checkpoint (GRU + LoRA-generation head, ~2.85 GB)</td>
+          </tr>
+          <tr>
+            <td><a href="https://huggingface.co/code2lora/code2lora-direct">code2lora-direct</a><span class="tag public">model</span></td>
+            <td>The Code2LoRA-Static (direct projection) checkpoint</td>
+          </tr>
+          <tr>
+            <td><a href="https://huggingface.co/datasets/code2lora/code2lora-static">code2lora-static</a><span class="tag public">dataset</span></td>
+            <td>RepoPeftBench static track: 62K assertion-completion QnAs over 512 repositories</td>
+          </tr>
+          <tr>
+            <td><a href="https://huggingface.co/datasets/code2lora/code2lora-evo">code2lora-evo</a><span class="tag public">dataset</span></td>
+            <td>Evolution track: per-commit diff + repo-state embeddings and capped training QnAs</td>
+          </tr>
+          <tr>
+            <td><a href="https://huggingface.co/datasets/code2lora/code2lora-static-anchor">code2lora-static-anchor</a><span class="tag public">dataset</span></td>
+            <td>Anchor-snapshot variant used in the per-commit evolution comparisons</td>
+          </tr>
+          <tr>
+            <td>code2lora-data-qa<span class="tag soon">release upcoming</span></td>
+            <td>73,829 commit-grounded question–answer pairs (LLM-generated, provenance-tagged) powering the <code>qa</code> task</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- ════════════ Citation ════════════ -->
+    <section id="citation">
+      <h2>Citation</h2>
+      <p>If you use Code2LoRA, RepoPeftBench, or c2l-terminal, please cite:</p>
+      <div class="bibtex">
+        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+<pre>@article{hotsko2026code2lora,
+  title  = {Code2LoRA: Hypernetworks for Repository-Conditioned and
+            Commit-Streaming Adapters of Code Language Models},
+  author = {Hotsko, Liliana},
+  year   = {2026},
+  note   = {Under review}
+}
+
+@inproceedings{hotsko2026c2lterminal,
+  title  = {c2l-terminal: An On-Device Coding Assistant that Generates
+            Repository- and Task-Specific LoRA Adapters from Commit History},
+  author = {Hotsko, Liliana},
+  year   = {2026},
+  note   = {EMNLP 2026 System Demonstrations, under review}
+}</pre>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ════════════ Footer ════════════ -->
+  <footer>
+    <p>
+      Code2LoRA &copy; 2026 &middot; MIT License &middot;
+      <a href="https://github.com/lilianahotsko/c2l_terminal">GitHub</a> &middot;
+      <a href="https://huggingface.co/code2lora">Hugging Face</a>
+    </p>
+  </footer>
+
+  <script>
+    function copyCode(btn) {
+      const pre = btn.parentElement.querySelector('pre');
+      navigator.clipboard.writeText(pre.textContent).then(() => {
+        btn.textContent = 'Copied!';
+        setTimeout(() => btn.textContent = 'Copy', 1500);
+      });
+    }
+  </script>
+
+</body>
+</html>
