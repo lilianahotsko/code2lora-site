@@ -543,16 +543,16 @@
         Code2LoRA
       </a>
       <nav class="nav-links" aria-label="Primary">
+        <a href="#savings">Savings</a>
         <a href="#solutions">Solutions</a>
         <a href="#how">How it works</a>
-        <a href="#savings">Savings</a>
         <a href="#security">Security</a>
         <a href="#plans">Plans</a>
         <a href="#faq">FAQ</a>
       </nav>
       <div class="nav-cta">
         <a class="link" href="https://lilianahotsko.github.io/Code2LoRA/">Research</a>
-        <a class="btn btn-primary" href="mailto:hello@code2lora.app?subject=Code2LoRA%20pilot">Book a pilot</a>
+        <a class="btn btn-primary" href="mailto:lhotsko@uwaterloo.ca?subject=Code2LoRA">Talk to founder</a>
       </div>
     </div>
   </header>
@@ -571,7 +571,7 @@
           so you pay for fewer tokens, get faster answers, and keep every line on your own hardware.
         </p>
         <div class="hero-ctas">
-          <a class="btn btn-primary" href="mailto:hello@code2lora.app?subject=Code2LoRA%20pilot">Start a free pilot <span class="arrow">→</span></a>
+          <a class="btn btn-primary" href="mailto:lhotsko@uwaterloo.ca?subject=Code2LoRA">Talk to founder <span class="arrow">→</span></a>
           <a class="btn btn-ghost" href="#cli">Try the free CLI</a>
         </div>
         <div class="iam">I'm a…</div>
@@ -627,6 +627,58 @@
       <span>Runs on Qwen open-weight models</span>
     </div>
   </div>
+
+  <!-- ═══════════ Savings calculator ═══════════ -->
+  <section class="alt" id="savings">
+    <div class="wrap">
+      <div class="center reveal">
+        <div class="eyebrow">Savings calculator</div>
+        <h2 class="h2">What does re-sending your codebase cost?</h2>
+        <p class="sub">Estimate the repository context you stop paying for when that knowledge lives in an adapter instead of the prompt.</p>
+      </div>
+      <div class="calc reveal">
+        <div class="calc-in">
+          <div class="presets" role="group" aria-label="Presets">
+            <button class="preset" data-preset="leaders" aria-pressed="true">Engineering org</button>
+            <button class="preset" data-preset="devtools" aria-pressed="false">DevTool / PLG</button>
+            <button class="preset" data-preset="consultancies" aria-pressed="false">Consultancy</button>
+            <button class="preset" data-preset="msps" aria-pressed="false">MSP</button>
+          </div>
+          <div class="field">
+            <div class="top"><label for="c-seats" id="c-seats-label">Engineers using AI</label><span class="val" id="v-seats"></span></div>
+            <input type="range" id="c-seats" min="10" max="10000" step="10">
+          </div>
+          <div class="field">
+            <div class="top"><label for="c-req">AI requests per person per workday</label><span class="val" id="v-req"></span></div>
+            <input type="range" id="c-req" min="10" max="500" step="10">
+            <div class="hint">Agents and autocomplete typically make many calls per task.</div>
+          </div>
+          <div class="field">
+            <div class="top"><label for="c-ctx">Repository context per request (tokens)</label><span class="val" id="v-ctx"></span></div>
+            <input type="range" id="c-ctx" min="500" max="30000" step="500">
+            <div class="hint">Retrieved files, symbols and docs currently pasted into each prompt.</div>
+          </div>
+          <div class="field">
+            <div class="top"><label for="c-price">Cost per 1M input tokens (USD)</label><span class="val" id="v-price"></span></div>
+            <input type="range" id="c-price" min="0.1" max="15" step="0.1">
+            <div class="hint">Your API price, or the equivalent GPU cost if you self-host.</div>
+          </div>
+        </div>
+        <div class="calc-out" aria-live="polite">
+          <div class="k">Estimated savings</div>
+          <div class="big grad-text" id="o-year">$0</div>
+          <div class="per">per year in repository-context tokens</div>
+          <div class="grid2">
+            <div><b id="o-month">$0</b><span>per month</span></div>
+            <div><b id="o-tokens">0</b><span>context tokens avoided per month</span></div>
+            <div><b id="o-shrink">0%</b><span>shorter prompts (300-token task)</span></div>
+            <div><b id="o-seat">$0</b><span>saved per person per year</span></div>
+          </div>
+          <p class="note">Illustrative estimate assuming 21 workdays/month and that the adapter replaces the repository context you send today. Code2LoRA adds zero repository tokens per request. Your pilot measures the real number on your own codebase.</p>
+        </div>
+      </div>
+    </div>
+  </section>
 
   <!-- ═══════════ Problem ═══════════ -->
   <section>
@@ -773,7 +825,7 @@
             <li>Per-team token-savings and accuracy report</li>
           </ul>
           <div class="pilot"><b>Pilot:</b> one team, one repository, one week of real use. Then we review the measured savings together.</div>
-          <a class="btn btn-primary" href="mailto:hello@code2lora.app?subject=Code2LoRA%20Enterprise%20pilot">Book an enterprise pilot <span class="arrow">→</span></a>
+          <a class="btn btn-primary" href="mailto:lhotsko@uwaterloo.ca?subject=Code2LoRA%20Enterprise%20pilot">Book an enterprise pilot <span class="arrow">→</span></a>
         </aside>
       </div>
 
@@ -817,7 +869,7 @@
             <li>Usage-based or OEM licensing</li>
           </ul>
           <div class="pilot"><b>Pilot:</b> integrate behind a feature flag for a cohort of users, then compare token cost and acceptance rate against your current context pipeline.</div>
-          <a class="btn btn-primary" href="mailto:hello@code2lora.app?subject=Code2LoRA%20SDK%20%2F%20OEM">Talk integration <span class="arrow">→</span></a>
+          <a class="btn btn-primary" href="mailto:lhotsko@uwaterloo.ca?subject=Code2LoRA%20SDK%20%2F%20OEM">Talk integration <span class="arrow">→</span></a>
         </aside>
       </div>
 
@@ -861,7 +913,7 @@
             <li>Co-branded offering for your clients</li>
           </ul>
           <div class="pilot"><b>Pilot:</b> one live engagement. We measure ramp-up time and token spend against a comparable past engagement.</div>
-          <a class="btn btn-primary" href="mailto:hello@code2lora.app?subject=Code2LoRA%20Partner%20(consultancy)">Become a partner <span class="arrow">→</span></a>
+          <a class="btn btn-primary" href="mailto:lhotsko@uwaterloo.ca?subject=Code2LoRA%20Partner%20(consultancy)">Become a partner <span class="arrow">→</span></a>
         </aside>
       </div>
 
@@ -905,66 +957,14 @@
             <li>Volume licensing aligned with fixed-fee contracts</li>
           </ul>
           <div class="pilot"><b>Pilot:</b> two or three client codebases on your infrastructure. We report cost per request before and after.</div>
-          <a class="btn btn-primary" href="mailto:hello@code2lora.app?subject=Code2LoRA%20Multi-tenant%20(MSP)">Discuss a partnership <span class="arrow">→</span></a>
+          <a class="btn btn-primary" href="mailto:lhotsko@uwaterloo.ca?subject=Code2LoRA%20Multi-tenant%20(MSP)">Discuss a partnership <span class="arrow">→</span></a>
         </aside>
       </div>
     </div>
   </section>
 
-  <!-- ═══════════ Savings calculator ═══════════ -->
-  <section class="alt" id="savings">
-    <div class="wrap">
-      <div class="center reveal">
-        <div class="eyebrow">Savings calculator</div>
-        <h2 class="h2">What does re-sending your codebase cost?</h2>
-        <p class="sub">Estimate the repository context you stop paying for when that knowledge lives in an adapter instead of the prompt.</p>
-      </div>
-      <div class="calc reveal">
-        <div class="calc-in">
-          <div class="presets" role="group" aria-label="Presets">
-            <button class="preset" data-preset="leaders" aria-pressed="true">Engineering org</button>
-            <button class="preset" data-preset="devtools" aria-pressed="false">DevTool / PLG</button>
-            <button class="preset" data-preset="consultancies" aria-pressed="false">Consultancy</button>
-            <button class="preset" data-preset="msps" aria-pressed="false">MSP</button>
-          </div>
-          <div class="field">
-            <div class="top"><label for="c-seats" id="c-seats-label">Engineers using AI</label><span class="val" id="v-seats"></span></div>
-            <input type="range" id="c-seats" min="10" max="10000" step="10">
-          </div>
-          <div class="field">
-            <div class="top"><label for="c-req">AI requests per person per workday</label><span class="val" id="v-req"></span></div>
-            <input type="range" id="c-req" min="10" max="500" step="10">
-            <div class="hint">Agents and autocomplete typically make many calls per task.</div>
-          </div>
-          <div class="field">
-            <div class="top"><label for="c-ctx">Repository context per request (tokens)</label><span class="val" id="v-ctx"></span></div>
-            <input type="range" id="c-ctx" min="500" max="30000" step="500">
-            <div class="hint">Retrieved files, symbols and docs currently pasted into each prompt.</div>
-          </div>
-          <div class="field">
-            <div class="top"><label for="c-price">Cost per 1M input tokens (USD)</label><span class="val" id="v-price"></span></div>
-            <input type="range" id="c-price" min="0.1" max="15" step="0.1">
-            <div class="hint">Your API price, or the equivalent GPU cost if you self-host.</div>
-          </div>
-        </div>
-        <div class="calc-out" aria-live="polite">
-          <div class="k">Estimated savings</div>
-          <div class="big grad-text" id="o-year">$0</div>
-          <div class="per">per year in repository-context tokens</div>
-          <div class="grid2">
-            <div><b id="o-month">$0</b><span>per month</span></div>
-            <div><b id="o-tokens">0</b><span>context tokens avoided per month</span></div>
-            <div><b id="o-shrink">0%</b><span>shorter prompts (300-token task)</span></div>
-            <div><b id="o-seat">$0</b><span>saved per person per year</span></div>
-          </div>
-          <p class="note">Illustrative estimate assuming 21 workdays/month and that the adapter replaces the repository context you send today. Code2LoRA adds zero repository tokens per request. Your pilot measures the real number on your own codebase.</p>
-        </div>
-      </div>
-    </div>
-  </section>
-
   <!-- ═══════════ Proof ═══════════ -->
-  <section id="results">
+  <section class="alt" id="results">
     <div class="wrap">
       <div class="center reveal">
         <div class="eyebrow">Proof, not promises</div>
@@ -1077,7 +1077,7 @@
             <li>Savings and accuracy reporting</li>
             <li>Priority support and onboarding</li>
           </ul>
-          <a class="btn btn-dark" href="mailto:hello@code2lora.app?subject=Code2LoRA%20Enterprise">Contact us</a>
+          <a class="btn btn-dark" href="mailto:lhotsko@uwaterloo.ca?subject=Code2LoRA%20Enterprise">Contact us</a>
         </div>
         <div class="plan reveal">
           <div class="for">AI DevTools &amp; PLG</div>
@@ -1091,7 +1091,7 @@
             <li>Engineering support for integration</li>
             <li>OEM terms available</li>
           </ul>
-          <a class="btn btn-outline" href="mailto:hello@code2lora.app?subject=Code2LoRA%20SDK%20%2F%20OEM">Talk integration</a>
+          <a class="btn btn-outline" href="mailto:lhotsko@uwaterloo.ca?subject=Code2LoRA%20SDK%20%2F%20OEM">Talk integration</a>
         </div>
         <div class="plan reveal">
           <div class="for">Consultancies &amp; MSPs</div>
@@ -1105,7 +1105,7 @@
             <li>Client-side or managed deployment</li>
             <li>Pricing aligned to fixed-fee contracts</li>
           </ul>
-          <a class="btn btn-outline" href="mailto:hello@code2lora.app?subject=Code2LoRA%20Partner">Become a partner</a>
+          <a class="btn btn-outline" href="mailto:lhotsko@uwaterloo.ca?subject=Code2LoRA%20Partner">Become a partner</a>
         </div>
       </div>
 
@@ -1212,7 +1212,7 @@
       <h2 class="h2">Stop paying to re-explain your codebase.</h2>
       <p class="sub">One week on your own repository. We measure the savings together, and the pilot is free.</p>
       <div class="ctas">
-        <a class="btn btn-primary" href="mailto:hello@code2lora.app?subject=Code2LoRA%20pilot">Book a pilot <span class="arrow">→</span></a>
+        <a class="btn btn-primary" href="mailto:lhotsko@uwaterloo.ca?subject=Code2LoRA">Talk to founder <span class="arrow">→</span></a>
         <a class="btn btn-ghost" href="https://lilianahotsko.github.io/Code2LoRA/">Read the research</a>
       </div>
     </div>
@@ -1227,7 +1227,7 @@
         <a href="https://github.com/lilianahotsko/c2l_terminal" target="_blank" rel="noopener">GitHub</a>
         <a href="https://huggingface.co/code2lora" target="_blank" rel="noopener">Hugging Face</a>
         <a href="https://pypi.org/project/code2lora/" target="_blank" rel="noopener">PyPI</a>
-        <a href="mailto:hello@code2lora.app">hello@code2lora.app</a>
+        <a href="mailto:lhotsko@uwaterloo.ca">lhotsko@uwaterloo.ca</a>
       </nav>
     </div>
   </footer>
